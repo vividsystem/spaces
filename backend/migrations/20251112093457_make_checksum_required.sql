@@ -1,0 +1,2 @@
+ALTER TABLE files
+ALTER COLUMN checksum SET NOT NULL;
