@@ -23,24 +23,24 @@ function Table<T extends Record<string, any>>(props: TableProps<T>) {
 
 
 	return (
-		<table class="min-w-full divide-y divide-gray-200 table-fixed">
-			<thead class="bg-gray-50 drop-shadow-gray-400 drop-shadow-xl sticky top-0">
+		<table class="divide-y divide-gray-200 table-fixed rounded-lg">
+			<thead class="bg-gray-900 sticky top-0 border-2 border-white">
 				<tr>
 					<For each={derivedColumns()}>{(col) => (
 						<th
 							scope="col"
-							class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+							class="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
 						>
 							{col.header()}
 						</th>
 					)}</For>
 				</tr>
 			</thead>
-			<tbody class="bg-white divide-y divide-gray-200 w-full">
+			<tbody class="bg-gray-700 divide-y divide-gray-900 w-full border-2 border-transparent">
 				<For each={props.data}>{(row, i) => (
-					<tr class="even:bg-white odd:bg-gray-100">
+					<tr class="even:bg-gray-800 odd:bg-gray-700">
 						<For each={derivedColumns()}>{(col) => (
-							<td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700 w-fit">
+							<td class="px-4 py-4 whitespace-nowrap text-sm text-gray-300 w-fit">
 								{col.accessor(row, i())}
 							</td>
 						)}</For>
