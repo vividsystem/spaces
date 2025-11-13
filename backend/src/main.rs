@@ -2,7 +2,8 @@ use std::path::Path;
 
 use axum::{
     Router,
-    http::StatusCode,
+    extract::DefaultBodyLimit,
+    http::{HeaderValue, StatusCode},
     response::{IntoResponse, Response},
     routing::{delete, get},
 };
@@ -14,6 +15,7 @@ use sqlx::PgPool;
 
 use files::{files_delete, space_files_get, space_files_post};
 use spaces::{spaces_delete, spaces_get, spaces_get_one, spaces_post, spaces_update};
+use tower_http::cors::{Any, CorsLayer};
 
 use crate::files::files_download;
 
@@ -47,16 +49,28 @@ where
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
+    let upload_limit: usize = 1024 * 2 * 10_usize.pow(8);
+    let allowed_origins: Vec<HeaderValue> = std::env::var("ALLOWED_ORIGINS")
+        .expect("ALLOWED_ORIGINS MUST BE SET")
+        .split(",")
+        .map(|o| o.parse::<HeaderValue>().expect("Origin invalid!"))
+        .collect();
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let upload_path = std::env::var("UPLOAD_PATH").expect("UPLOAD_PATH must be set");
     let upload_path_exists = Path::new(&upload_path).exists();
     if !upload_path_exists {
         panic!("The specified upload path doesnt exist!")
     }
+
     let pool = PgPool::connect(&database_url).await?;
 
     sqlx::migrate!("./migrations").run(&pool).await?;
     let state = AppState { pool, upload_path };
+
+    let cors = CorsLayer::new()
+        .allow_methods(Any)
+        .allow_headers(Any)
+        .allow_origin(allowed_origins);
 
     let router_spaces = Router::new()
         .route("/", get(spaces_get).post(spaces_post))
@@ -68,7 +82,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .route(
             "/{space_id}/files",
-            get(space_files_get).post(space_files_post),
+            get(space_files_get)
+                .post(space_files_post)
+                // 200MB upload limit
+                .layer(DefaultBodyLimit::max(upload_limit)),
         );
 
     let router_files = Router::new()
@@ -79,6 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(|| async { "spaces up and running!" }))
         .nest("/api/spaces", router_spaces)
         .nest("/api/files", router_files)
+        .layer(cors)
         .with_state(state);
 
     let address = "0.0.0.0:6570";
