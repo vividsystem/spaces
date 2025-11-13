@@ -56,7 +56,7 @@ pub async fn space_files_post(
         .expect("Space doesn't exist!");
     while let Some(field) = multipart.next_field().await? {
         let old_filename = field
-            .name()
+            .file_name()
             .expect("Field name should be valid!")
             .to_string();
 

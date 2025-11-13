@@ -36,7 +36,7 @@ function Table<T extends Record<string, any>>(props: TableProps<T>) {
 					)}</For>
 				</tr>
 			</thead>
-			<tbody class="bg-gray-700 divide-y divide-gray-900 w-full border-2 border-transparent">
+			<tbody class="bg-gray-700 divide-y divide-gray-900 w-full border-2 border-transparent max-w-full">
 				<For each={props.data}>{(row, i) => (
 					<tr class="even:bg-gray-800 odd:bg-gray-700">
 						<For each={derivedColumns()}>{(col) => (
