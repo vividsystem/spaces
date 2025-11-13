@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use axum::{
     Router,
     http::StatusCode,
@@ -10,8 +12,10 @@ mod spaces;
 
 use sqlx::PgPool;
 
-use files::{files_delete, files_get, space_files_get, space_files_post};
+use files::{files_delete, space_files_get, space_files_post};
 use spaces::{spaces_delete, spaces_get, spaces_get_one, spaces_post, spaces_update};
+
+use crate::files::files_download;
 
 #[derive(Clone)]
 struct AppState {
@@ -45,6 +49,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let upload_path = std::env::var("UPLOAD_PATH").expect("UPLOAD_PATH must be set");
+    let upload_path_exists = Path::new(&upload_path).exists();
+    if !upload_path_exists {
+        panic!("The specified upload path doesnt exist!")
+    }
     let pool = PgPool::connect(&database_url).await?;
 
     sqlx::migrate!("./migrations").run(&pool).await?;
@@ -64,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
     let router_files = Router::new()
-        .route("/{file_id}/download", get(files_get))
+        .route("/{file_id}/download", get(files_download))
         .route("/{file_id}", delete(files_delete));
 
     let app = Router::new()

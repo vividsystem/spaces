@@ -115,6 +115,8 @@ dependencies = [
  "sqlx",
  "time",
  "tokio",
+ "tokio-util",
+ "tracing",
  "uuid",
 ]
 

@@ -10,7 +10,7 @@ use crate::{AppError, AppState};
 
 #[derive(Debug, Serialize, FromRow)]
 pub struct Space {
-    pub id: Option<String>,
+    pub id: String,
     pub name: String,
     pub description: Option<String>,
     #[serde(with = "time::serde::rfc3339")]

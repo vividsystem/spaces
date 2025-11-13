@@ -5,11 +5,13 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.100"
-axum = { version = "0.8.6", features = ["http2", "ws", "macros", "multipart"] }
+axum = { version = "0.8.6", features = ["http2", "ws", "macros", "multipart", "tracing"] }
 dotenvy = "0.15.7"
 serde = { version = "1.0.228", features = ["derive"] }
 sha2 = "0.10.9"
 sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "time"] }
 time = { version = "0.3.44", features = ["serde", "macros", "formatting", "parsing", "serde-human-readable"] }
 tokio = { version = "1.48.0", features = ["fs", "macros", "rt-multi-thread"] }
+tokio-util = { version = "0.7.17", features = ["io"] }
+tracing = "0.1.41"
 uuid = { version = "1.18.1", features = ["v4"] }
