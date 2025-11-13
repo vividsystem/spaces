@@ -20,7 +20,7 @@ pub struct Space {
 
     pub is_public: bool,
     pub access_code: Option<String>,
-    pub total_size_used_bytes: i32,
+    pub total_size_used_bytes: i64,
 }
 
 #[debug_handler()]

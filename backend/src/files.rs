@@ -8,7 +8,7 @@ use tokio::{fs::File, io::AsyncWriteExt};
 
 use axum::{
     Json,
-    body::{Body, BodyDataStream},
+    body::Body,
     debug_handler,
     extract::{Multipart, Path, State},
     http::{HeaderMap, HeaderValue, header},
@@ -66,7 +66,7 @@ pub async fn space_files_post(
             .to_string();
 
         let data = field.bytes().await?;
-        let file_size_bytes = data.len() as i32;
+        let file_size_bytes = data.len() as i64;
         let checksum = format!("{:x}", Sha256::digest(&data));
 
         let id = uuid::Uuid::new_v4();
@@ -94,6 +94,16 @@ pub async fn space_files_post(
         ).fetch_one(&pool).await?;
         files.push(file_rec);
     }
+
+    let total_file_sizes: i64 = files.iter().map(|file| file.file_size_bytes).sum();
+
+    sqlx::query!(
+        r#"UPDATE spaces SET total_size_used_bytes = total_size_used_bytes + $2 WHERE id = $1"#,
+        space_id,
+        total_file_sizes
+    )
+    .execute(&pool)
+    .await?;
 
     Ok(Json::from(files))
 }
@@ -144,6 +154,14 @@ pub async fn files_download(
     let filepath = std::path::Path::new(&upload_path).join(file_meta.checksum);
 
     let file = File::open(filepath).await?;
+
+    sqlx::query!(
+        r#"UPDATE files SET download_count = download_count + 1 WHERE id = $1"#,
+        file_meta.id,
+    )
+    .execute(&pool)
+    .await?;
+
     let stream = ReaderStream::new(file);
     let body = Body::from_stream(stream);
 
@@ -163,6 +181,12 @@ pub async fn files_delete(
     .fetch_optional(&pool)
     .await?
     .expect("File needs to exist!");
+
+    sqlx::query!(
+        r#"UPDATE spaces SET total_size_used_bytes = GREATEST(0, total_size_used_bytes - $2) WHERE id = $1"#,
+        file_meta.space_id,
+        file_meta.file_size_bytes
+    ).execute(&pool).await?;
 
     let other_files = sqlx::query_as!(
         SpaceFile,
