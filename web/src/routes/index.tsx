@@ -1,25 +1,39 @@
 import { A } from "@solidjs/router";
-import Counter from "~/components/Counter";
+import { createResource, For } from "solid-js";
+import SpaceCard from "~/components/SpaceCard";
+
+export interface Space {
+	id: string,
+	name: string,
+	description?: string,
+	is_public: boolean,
+	total_size_used_bytes: number,
+	created_at: Date,
+	updated_at: Date
+	access_code?: string
+}
 
 export default function Home() {
-  return (
-    <main class="text-center mx-auto text-gray-700 p-4">
-      <h1 class="max-6-xs text-6xl text-sky-700 font-thin uppercase my-16">Hello world!</h1>
-      <Counter />
-      <p class="mt-8">
-        Visit{" "}
-        <a href="https://solidjs.com" target="_blank" class="text-sky-600 hover:underline">
-          solidjs.com
-        </a>{" "}
-        to learn how to build Solid apps.
-      </p>
-      <p class="my-4">
-        <span>Home</span>
-        {" - "}
-        <A href="/about" class="text-sky-600 hover:underline">
-          About Page
-        </A>{" "}
-      </p>
-    </main>
-  );
+	const [spaces] = createResource(async () => {
+		const res = await fetch(`${import.meta.env.VITE_BACKEND_URL!}/api/spaces`)
+		const data = await res.json()
+		return data as Space[]
+	})
+	return (
+		<main class="grid items-start p-4">
+			<div class="py-4">
+				<h1 class="lg:text-6xl text-white">Spaces</h1>
+			</div>
+			<div class="flex flex-row gap-4">
+				<For each={spaces()}>
+					{(space) => (
+						<A href={`/spaces/${space.id}`}>
+							<SpaceCard space={space} />
+						</A>
+					)}
+				</For>
+			</div>
+
+		</main>
+	);
 }
