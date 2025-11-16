@@ -36,7 +36,7 @@ After=network.target
 [Service]
 Type=simple
 User=your-user
-WorkingDirectory=/home/your-user/your-app
+WorkingDirectory=/home/your-user/spaces/backend
 ExecStart=/home/your-user/your-app/target/release/your-binary-name
 Restart=on-failure
 RestartSec=5
@@ -54,7 +54,7 @@ After=network.target
 [Service]
 Type=simple
 User=your-user
-WorkingDirectory=/home/your-user/your-project
+WorkingDirectory=/home/your-user/spaces/web
 ExecStart=/home/your-user/.bun/bin/bun run src/index.ts
 Restart=on-failure
 RestartSec=5
