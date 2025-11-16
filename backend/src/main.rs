@@ -1,13 +1,14 @@
 use std::path::Path;
 
+use anyhow::Context;
 use axum::{
     Router,
     extract::DefaultBodyLimit,
-    http::{HeaderValue, StatusCode},
-    response::{IntoResponse, Response},
+    http::HeaderValue,
     routing::{delete, get},
 };
 
+mod errors;
 mod files;
 mod spaces;
 
@@ -17,7 +18,10 @@ use files::{files_delete, space_files_get, space_files_post};
 use spaces::{spaces_delete, spaces_get, spaces_get_one, spaces_post, spaces_update};
 use tower_http::cors::{Any, CorsLayer};
 
-use crate::files::files_download;
+use crate::{
+    errors::{AppError, ErrorType, IntoAppError, init_logging},
+    files::files_download,
+};
 
 #[derive(Clone)]
 struct AppState {
@@ -25,46 +29,59 @@ struct AppState {
     upload_path: String,
 }
 
-struct AppError(anyhow::Error);
-
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Something went wrong: {}", self.0),
-        )
-            .into_response()
-    }
-}
-
-impl<E> From<E> for AppError
-where
-    E: Into<anyhow::Error>,
-{
-    fn from(err: E) -> Self {
-        AppError(err.into())
-    }
-}
-
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), AppError> {
     dotenvy::dotenv().ok();
+    init_logging();
     let upload_limit: usize = 1024 * 2 * 10_usize.pow(8);
     let allowed_origins: Vec<HeaderValue> = std::env::var("ALLOWED_ORIGINS")
-        .expect("ALLOWED_ORIGINS MUST BE SET")
+        .map_err(|e| {
+            AppError::new(
+                ErrorType::Configuration("ALLOWED_ORIGINS required.".into()),
+                e.into(),
+            )
+        })?
         .split(",")
-        .map(|o| o.parse::<HeaderValue>().expect("Origin invalid!"))
-        .collect();
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let upload_path = std::env::var("UPLOAD_PATH").expect("UPLOAD_PATH must be set");
+        .map(|origin| {
+            let trimmed = origin.trim();
+            trimmed
+                .parse::<HeaderValue>()
+                .context(format!(
+                    "Failed to parse origin {} as valid HTTP header value",
+                    trimmed
+                ))
+                .map_err(|e| {
+                    AppError::new(ErrorType::Configuration("CORS Origin invalid.".into()), e)
+                })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let database_url = std::env::var("DATABASE_URL")
+        .context("DATABASE_URL not set")
+        .map_err(|e| {
+            AppError::new(
+                ErrorType::Configuration("DATABASE_URL must be set".into()),
+                e,
+            )
+        })?;
+    let upload_path = std::env::var("UPLOAD_PATH")
+        .context("UPLOAD_PATH not set")
+        .map_err(|e| {
+            AppError::new(
+                ErrorType::Configuration("UPLOAD_PATH must be set".into()),
+                e,
+            )
+        })?;
     let upload_path_exists = Path::new(&upload_path).exists();
     if !upload_path_exists {
         panic!("The specified upload path doesnt exist!")
     }
 
-    let pool = PgPool::connect(&database_url).await?;
+    let pool = PgPool::connect(&database_url).await.into_db_error()?;
 
-    sqlx::migrate!("./migrations").run(&pool).await?;
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await
+        .into_db_error()?;
     let state = AppState { pool, upload_path };
 
     let cors = CorsLayer::new()
@@ -100,8 +117,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_state(state);
 
     let address = "0.0.0.0:6570";
-    let listener = tokio::net::TcpListener::bind(address).await?;
-    axum::serve(listener, app).await?;
+    let listener = tokio::net::TcpListener::bind(address)
+        .await
+        .into_internal_error()?;
+    axum::serve(listener, app).await.into_internal_error()?;
 
     Ok(())
 }

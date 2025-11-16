@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use time::OffsetDateTime;
 
-use crate::{AppError, AppState};
+use crate::{
+    AppState,
+    errors::{AppError, IntoAppError},
+};
 
 #[derive(Debug, Serialize, FromRow)]
 pub struct Space {
@@ -32,7 +35,8 @@ pub async fn spaces_get(
 ) -> Result<Json<Vec<Space>>, AppError> {
     let rec: Vec<Space> = sqlx::query_as!(Space, "SELECT * FROM spaces ORDER BY created_at DESC")
         .fetch_all(&pool)
-        .await?;
+        .await
+        .into_db_error()?;
 
     Ok(Json::from(rec))
 }
@@ -66,7 +70,7 @@ pub async fn spaces_post(
         payload.access_code
     )
     .fetch_one(&pool)
-    .await?;
+    .await.into_db_error()?;
 
     Ok(Json::from(rec))
 }
@@ -81,7 +85,8 @@ pub async fn spaces_get_one(
 ) -> Result<Json<Option<Space>>, AppError> {
     let rec = sqlx::query_as!(Space, "SELECT * FROM spaces WHERE id = $1", space_id)
         .fetch_optional(&pool)
-        .await?;
+        .await
+        .into_db_error()?;
 
     Ok(Json::from(rec))
 }
@@ -124,7 +129,8 @@ pub async fn spaces_update(
         payload.access_code
     )
     .fetch_one(&pool)
-    .await?;
+    .await
+    .into_db_error()?;
 
     Ok(Json::from(rec))
 }
@@ -146,7 +152,8 @@ pub async fn spaces_delete(
         space_id
     )
     .fetch_optional(&pool)
-    .await?;
+    .await
+    .into_db_error()?;
 
     Ok(Json::from(rec))
 }

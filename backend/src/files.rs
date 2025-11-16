@@ -1,5 +1,6 @@
 use std::fs::remove_file;
 
+use anyhow::anyhow;
 use serde::{Serialize, Serializer};
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
@@ -16,7 +17,11 @@ use axum::{
 };
 use tokio_util::io::ReaderStream;
 
-use crate::{AppError, AppState, spaces::Space};
+use crate::{
+    AppState,
+    errors::{AppError, ErrorType, IntoAppError},
+    spaces::Space,
+};
 
 fn serialize_opt<S: Serializer>(opt: &Option<OffsetDateTime>, s: S) -> Result<S::Ok, S::Error> {
     match opt {
@@ -52,20 +57,23 @@ pub async fn space_files_post(
     // check if space exists
     let rec = sqlx::query_as!(Space, "SELECT * from spaces where id = $1", space_id)
         .fetch_optional(&pool)
-        .await?
-        .expect("Space doesn't exist!");
-    while let Some(field) = multipart.next_field().await? {
-        let old_filename = field
-            .file_name()
-            .expect("Field name should be valid!")
-            .to_string();
+        .await
+        .into_db_error()?
+        .ok_or_else(|| {
+            AppError::new(
+                ErrorType::NotFound("Space not found".into()),
+                anyhow!("Couldn't find requested Space"),
+            )
+        })?;
+    while let Some(field) = multipart.next_field().await.into_validation_error()? {
+        let old_filename: Option<String> = field.file_name().map(|s| s.to_string());
 
         let filetype = field
             .content_type()
             .expect("Content-Type should be set")
             .to_string();
 
-        let data = field.bytes().await?;
+        let data = field.bytes().await.into_validation_error()?;
         let file_size_bytes = data.len() as i64;
         let checksum = format!("{:x}", Sha256::digest(&data));
 
@@ -79,7 +87,7 @@ pub async fn space_files_post(
                 .await
                 .expect("Filename should be unique and therefore not existant on creation!");
 
-            file.write_all(&data).await?;
+            file.write_all(&data).await.into_internal_error()?;
         }
 
         let file_rec = sqlx::query_as!(
@@ -91,7 +99,7 @@ pub async fn space_files_post(
             file_size_bytes,
             checksum,
             filetype
-        ).fetch_one(&pool).await?;
+        ).fetch_one(&pool).await.into_db_error()?;
         files.push(file_rec);
     }
 
@@ -103,7 +111,8 @@ pub async fn space_files_post(
         total_file_sizes
     )
     .execute(&pool)
-    .await?;
+    .await
+    .into_db_error()?;
 
     Ok(Json::from(files))
 }
@@ -124,7 +133,8 @@ pub async fn space_files_get(
         space_id,
     )
     .fetch_all(&pool)
-    .await?;
+    .await
+    .into_db_error()?;
 
     Ok(Json::from(files))
 }
@@ -136,31 +146,41 @@ pub async fn files_download(
 ) -> Result<impl IntoResponse, AppError> {
     let file_meta = sqlx::query_as!(SpaceFile, r"SELECT * from files where id = $1", file_id,)
         .fetch_optional(&pool)
-        .await?
-        .expect("File does not exist!");
+        .await
+        .into_db_error()?
+        .ok_or_else(|| {
+            AppError::new(
+                ErrorType::Validation("File not found".into()),
+                anyhow!("Requested file not stored in database"),
+            )
+        })?;
 
     let mut headers = HeaderMap::new();
 
     if let Some(mime_type) = file_meta.mime_type {
-        headers.insert(header::CONTENT_TYPE, HeaderValue::from_str(&mime_type)?);
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_str(&mime_type).into_internal_error()?,
+        );
     }
 
     let content_disposition = format!("attachment; filename=\"{}\"", file_meta.original_filename);
     headers.insert(
         header::CONTENT_DISPOSITION,
-        HeaderValue::from_str(&content_disposition)?,
+        HeaderValue::from_str(&content_disposition).into_internal_error()?,
     );
 
     let filepath = std::path::Path::new(&upload_path).join(file_meta.checksum);
 
-    let file = File::open(filepath).await?;
+    let file = File::open(filepath).await.into_internal_error()?;
 
     sqlx::query!(
         r#"UPDATE files SET download_count = download_count + 1 WHERE id = $1"#,
         file_meta.id,
     )
     .execute(&pool)
-    .await?;
+    .await
+    .into_db_error()?;
 
     let stream = ReaderStream::new(file);
     let body = Body::from_stream(stream);
@@ -179,14 +199,20 @@ pub async fn files_delete(
         file_id,
     )
     .fetch_optional(&pool)
-    .await?
-    .expect("File needs to exist!");
+    .await
+    .into_db_error()?
+    .ok_or_else(|| {
+        AppError::new(
+            ErrorType::Validation("File not found".into()),
+            anyhow!("Requested file not stored in database"),
+        )
+    })?;
 
     sqlx::query!(
         r#"UPDATE spaces SET total_size_used_bytes = GREATEST(0, total_size_used_bytes - $2) WHERE id = $1"#,
         file_meta.space_id,
         file_meta.file_size_bytes
-    ).execute(&pool).await?;
+    ).execute(&pool).await.into_db_error()?;
 
     let other_files = sqlx::query_as!(
         SpaceFile,
@@ -194,11 +220,17 @@ pub async fn files_delete(
         file_meta.checksum
     )
     .fetch_all(&pool)
-    .await?;
+    .await
+    .into_db_error()?;
 
     let filepath = std::path::Path::new(&upload_path).join(&file_meta.checksum);
     if other_files.len() == 0 {
-        remove_file(filepath)?;
+        remove_file(filepath).map_err(|e| {
+            AppError::new(
+                ErrorType::Internal("An error occured removing the file".into()),
+                e.into(),
+            )
+        })?;
     }
 
     Ok(Json::from(file_meta))
