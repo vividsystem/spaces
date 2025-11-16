@@ -23,11 +23,13 @@ It is supposed to be file sharing managed into groups. I intend on adding auth i
 cd backend
 cargo build --release
 cd ../web
+bun i
 bun run build
 ```
 
 ### Example Systemd services
 #### Backend
+`spaces-backend.service`
 ```ini
 [Unit]
 Description=Spaces Backend
@@ -36,8 +38,8 @@ After=network.target
 [Service]
 Type=simple
 User=your-user
-WorkingDirectory=/home/your-user/your-app
-ExecStart=/home/your-user/your-app/target/release/your-binary-name
+WorkingDirectory=/home/your-user/spaces/backend
+ExecStart=/home/your-user/spaces/backend/target/release/backend
 Restart=on-failure
 RestartSec=5
 Environment="RUST_LOG=info"
@@ -45,17 +47,19 @@ Environment="RUST_LOG=info"
 [Install]
 WantedBy=multi-user.target
 ```
+`spaces-backend.service`
 #### Web
 ```ini
 [Unit]
 Description=Spaces Web
 After=network.target
+Require=spaces-backend.service
 
 [Service]
 Type=simple
 User=your-user
-WorkingDirectory=/home/your-user/your-project
-ExecStart=/home/your-user/.bun/bin/bun run src/index.ts
+WorkingDirectory=/home/your-user/spaces/web
+ExecStart=/home/your-user/.bun/bin/bun run .output/server/index.mjs
 Restart=on-failure
 RestartSec=5
 Environment="NODE_ENV=production"
