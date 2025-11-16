@@ -29,6 +29,7 @@ bun run build
 
 ### Example Systemd services
 #### Backend
+`spaces-backend.service`
 ```ini
 [Unit]
 Description=Spaces Backend
@@ -38,7 +39,7 @@ After=network.target
 Type=simple
 User=your-user
 WorkingDirectory=/home/your-user/spaces/backend
-ExecStart=/home/your-user/your-app/target/release/your-binary-name
+ExecStart=/home/your-user/spaces/backend/target/release/backend
 Restart=on-failure
 RestartSec=5
 Environment="RUST_LOG=info"
@@ -46,17 +47,19 @@ Environment="RUST_LOG=info"
 [Install]
 WantedBy=multi-user.target
 ```
+`spaces-backend.service`
 #### Web
 ```ini
 [Unit]
 Description=Spaces Web
 After=network.target
+Require=spaces-backend.service
 
 [Service]
 Type=simple
 User=your-user
 WorkingDirectory=/home/your-user/spaces/web
-ExecStart=/home/your-user/.bun/bin/bun run src/index.ts
+ExecStart=/home/your-user/.bun/bin/bun run .output/server/index.mjs
 Restart=on-failure
 RestartSec=5
 Environment="NODE_ENV=production"
