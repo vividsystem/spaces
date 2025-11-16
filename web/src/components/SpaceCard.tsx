@@ -5,7 +5,7 @@ import { Space } from "~/routes";
 export default function SpaceCard(props: { space: Space }) {
 
 	return (
-		<div class="bg-gray-800 rounded-xl p-4 flex flex-col items-start h-fill">
+		<div class="bg-rose-950 rounded-xl p-4 flex flex-col items-start h-fill">
 
 			<h1 class="text-gray-300 lg:text-5xl">{props.space.name}</h1>
 			<Show when={props.space.description}>

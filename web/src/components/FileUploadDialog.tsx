@@ -38,7 +38,7 @@ export default function FileUploadDialog(props: { spaceID: string }) {
 		<Dialog open={open()}>
 			<Dialog.Trigger onClick={() => setOpen(true)}>
 				<div>
-					<Plus class="size-12 stroke-white" />
+					<Plus class="size-12 stroke-rose-800" />
 				</div>
 			</Dialog.Trigger>
 			<Dialog.Portal>

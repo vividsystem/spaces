@@ -19,13 +19,17 @@ export interface Space {
 export default function Home() {
 	const [spaces, { mutate }] = createResource(async () => {
 		const res = await fetch(`${import.meta.env.VITE_BACKEND_URL!}/api/spaces`)
-		const data = await res.json()
-		return data as Space[]
+		if (!res.ok) {
+			console.error(await res.text())
+		} else {
+			const data = await res.json()
+			return data as Space[]
+		}
 	})
 	return (
 		<main class="grid items-start p-4">
 			<div class="py-4 items-center justify-between flex flex-row">
-				<h1 class="lg:text-6xl text-white">Spaces</h1>
+				<h1 class="lg:text-6xl text-rose-800">Spaces</h1>
 				<SpaceDialog mutateSpace={mutate} />
 
 			</div>

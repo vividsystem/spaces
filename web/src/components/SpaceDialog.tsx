@@ -44,7 +44,7 @@ export default function SpaceDialog(props: { mutateSpace: Setter<Space[] | undef
 		<Dialog open={open()}>
 			<Dialog.Trigger onClick={() => setOpen(true)}>
 				<div>
-					<Plus class="size-12 stroke-white" />
+					<Plus class="size-12 stroke-rose-800" />
 				</div>
 			</Dialog.Trigger>
 			<Dialog.Portal>

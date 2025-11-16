@@ -64,22 +64,22 @@ export default function SpacePage() {
 	]
 
 	return (
-		<main class="text-white p-4">
+		<main class="text-rose-800 p-4">
 			<A href="/">
-				<div class="flex flex-row items-center">
-					<ArrowLeft class="stroke-white lg:size-8" />
-					<h1 class="lg:text-4xl"> Go back</h1>
+				<div class="flex flex-row items-center py-2">
+					<ArrowLeft class="stroke-rose-950 lg:size-8" />
+					<h1 class="lg:text-4xl text-rose-950"> Go back</h1>
 				</div>
 			</A>
 			<Suspense fallback={"LOADING"}>
 				<Show when={spaceFiles()}>
-					<div class="flex flex-row justify-between">
+					<div class="flex flex-row justify-between py-4">
 						<h1 class="lg:text-5xl">{spaceFiles()!.space.name}</h1>
 						<FileUploadDialog spaceID={spaceFiles()!.space.id} />
 					</div>
 				</Show>
 				<Show when={spaceFiles()?.space.description}>
-					<p class="text-3xl text-gray-400">{spaceFiles()!.space.description}</p>
+					<p class="text-3xl text-gray-400 py-2">{spaceFiles()!.space.description}</p>
 				</Show>
 			</Suspense>
 			<Show when={spaceFiles()}>
