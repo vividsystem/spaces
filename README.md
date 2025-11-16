@@ -23,6 +23,7 @@ It is supposed to be file sharing managed into groups. I intend on adding auth i
 cd backend
 cargo build --release
 cd ../web
+bun i
 bun run build
 ```
 
