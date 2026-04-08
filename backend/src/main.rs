@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, str::FromStr};
 
 use anyhow::Context;
 use axum::{
@@ -12,11 +12,17 @@ mod errors;
 mod files;
 mod spaces;
 
-use sqlx::PgPool;
+use sqlx::{
+    PgPool,
+    postgres::{PgConnectOptions, PgPoolOptions},
+};
 
 use files::{files_delete, space_files_get, space_files_post};
 use spaces::{spaces_delete, spaces_get, spaces_get_one, spaces_post, spaces_update};
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::{
+    cors::{Any, CorsLayer},
+    trace::TraceLayer,
+};
 
 use crate::{
     errors::{AppError, ErrorType, IntoAppError, init_logging},
@@ -33,7 +39,7 @@ struct AppState {
 async fn main() -> Result<(), AppError> {
     dotenvy::dotenv().ok();
     init_logging();
-    let upload_limit: usize = 1024 * 2 * 10_usize.pow(8);
+    let upload_limit: usize = 1024 * 1024 * 20;
     let allowed_origins: Vec<HeaderValue> = std::env::var("ALLOWED_ORIGINS")
         .map_err(|e| {
             AppError::new(
@@ -76,7 +82,14 @@ async fn main() -> Result<(), AppError> {
         panic!("The specified upload path doesnt exist!")
     }
 
-    let pool = PgPool::connect(&database_url).await.into_db_error()?;
+    let pool = PgPoolOptions::new()
+        .connect_with(
+            PgConnectOptions::from_str(&database_url)
+                .into_db_error()?
+                .statement_cache_capacity(0),
+        )
+        .await
+        .into_db_error()?;
 
     sqlx::migrate!("./migrations")
         .run(&pool)
@@ -114,6 +127,7 @@ async fn main() -> Result<(), AppError> {
         .nest("/api/spaces", router_spaces)
         .nest("/api/files", router_files)
         .layer(cors)
+        .layer(TraceLayer::new_for_http())
         .with_state(state);
 
     let address = "0.0.0.0:6570";

@@ -18,6 +18,13 @@ It is supposed to be file sharing managed into groups. I intend on adding auth i
 - Bun (or another TS/JS runtime) and Rust installed
 
 
+## Setup
+paste the following into `backend/.env`
+```env
+DATABASE_URL=
+UPLOAD_PATH=WHERE_TO_SAFE_FILES
+ALLOWED_ORIGINS=http://localhost:3001,http://localhost:3000 # replace with your actual origins
+```
 ## Deploy
 ```bash
 cd backend
@@ -26,8 +33,10 @@ cd ../web
 bun i
 bun run build
 ```
+The above gives you a binary you can call
 
 ### Example Systemd services
+I recommend making an extra user with its own home file directory where you can then safe the uploaded files
 #### Backend
 `spaces-backend.service`
 ```ini

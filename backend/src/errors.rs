@@ -9,6 +9,11 @@ use serde::Serialize;
 use tracing::{error, warn};
 use uuid::Uuid;
 
+#[derive(Serialize)]
+pub struct ResponseError {
+    pub message: String,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ErrorType {
     #[error("Database error: {0}")]
