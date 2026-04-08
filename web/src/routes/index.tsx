@@ -33,7 +33,7 @@ export default function Home() {
 				<SpaceDialog mutateSpace={mutate} />
 
 			</div>
-			<div class="grid lg:grid-cols-5 grid-cols-1 gap-4">
+			<div class="grid lg:grid-cols-2 2xl:grid-cols-4 grid-cols-1 gap-4">
 				<For each={spaces()}>
 					{(space) => (
 						<A href={`/spaces/${space.id}`}>

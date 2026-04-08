@@ -1,6 +1,8 @@
 use axum::{
     Json, debug_handler,
-    extract::{Path, State},
+    extract::{Path, Query, State},
+    http::StatusCode,
+    response::IntoResponse,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
@@ -8,7 +10,7 @@ use time::OffsetDateTime;
 
 use crate::{
     AppState,
-    errors::{AppError, IntoAppError},
+    errors::{AppError, ErrorType, IntoAppError, ResponseError},
 };
 
 #[derive(Debug, Serialize, FromRow)]
@@ -20,7 +22,6 @@ pub struct Space {
     pub created_at: OffsetDateTime,
     #[serde(with = "time::serde::iso8601")]
     pub updated_at: OffsetDateTime,
-
     pub is_public: bool,
     pub access_code: Option<String>,
     pub total_size_used_bytes: i64,
@@ -33,10 +34,14 @@ pub async fn spaces_get(
         upload_path: _,
     }): State<AppState>,
 ) -> Result<Json<Vec<Space>>, AppError> {
-    let rec: Vec<Space> = sqlx::query_as!(Space, "SELECT * FROM spaces ORDER BY created_at DESC")
-        .fetch_all(&pool)
-        .await
-        .into_db_error()?;
+    // TODO access code filtering
+    let rec: Vec<Space> = sqlx::query_as!(
+        Space,
+        "SELECT * FROM spaces WHERE is_public IS TRUE ORDER BY created_at DESC"
+    )
+    .fetch_all(&pool)
+    .await
+    .into_db_error()?;
 
     Ok(Json::from(rec))
 }
@@ -70,25 +75,53 @@ pub async fn spaces_post(
         payload.access_code
     )
     .fetch_one(&pool)
-    .await.into_db_error()?;
+    .await
+    .into_db_error()?;
 
     Ok(Json::from(rec))
 }
 
+#[derive(Deserialize)]
+pub struct CodeQuery {
+    pub access_code: Option<String>,
+}
 #[debug_handler()]
 pub async fn spaces_get_one(
     Path(space_id): Path<String>,
+    Query(CodeQuery { access_code }): Query<CodeQuery>,
     State(AppState {
         pool,
         upload_path: _,
     }): State<AppState>,
-) -> Result<Json<Option<Space>>, AppError> {
-    let rec = sqlx::query_as!(Space, "SELECT * FROM spaces WHERE id = $1", space_id)
-        .fetch_optional(&pool)
-        .await
-        .into_db_error()?;
+) -> Result<impl IntoResponse, AppError> {
+    let rec = sqlx::query_as!(
+        Space,
+        r#"
+        SELECT * FROM spaces WHERE id = $1
+        "#,
+        space_id
+    )
+    .fetch_optional(&pool)
+    .await
+    .into_db_error()?;
+    let Some(space) = rec else {
+        return Err(AppError::new(
+            ErrorType::NotFound("Space does not exist".to_string()),
+            anyhow::anyhow!("Space does not exist"),
+        ));
+    };
+    if space
+        .access_code
+        .clone()
+        .is_some_and(|c| access_code.is_none_or(|ac| ac != c))
+    {
+        return Err(AppError::new(
+            ErrorType::Authentication("Bad credentials".to_string()),
+            anyhow::anyhow!("Bad credentials"),
+        ));
+    }
 
-    Ok(Json::from(rec))
+    Ok((StatusCode::OK, Json::from(space)))
 }
 
 #[derive(Deserialize, FromRow)]
@@ -106,10 +139,38 @@ pub async fn spaces_update(
         pool,
         upload_path: _,
     }): State<AppState>,
-
     Path(space_id): Path<String>,
+    Query(CodeQuery { access_code }): Query<CodeQuery>,
     Json(payload): Json<UpdateSpaceRequest>,
-) -> Result<Json<Space>, AppError> {
+) -> Result<impl IntoResponse, AppError> {
+    let rec = sqlx::query_as!(
+        Space,
+        r#"
+        SELECT * FROM spaces WHERE id = $1
+        "#,
+        space_id
+    )
+    .fetch_optional(&pool)
+    .await
+    .into_db_error()?;
+    let Some(space) = rec else {
+        return Err(AppError::new(
+            ErrorType::NotFound("Space does not exist".to_string()),
+            anyhow::anyhow!("Space does not exist"),
+        ));
+    };
+
+    if space
+        .access_code
+        .clone()
+        .is_some_and(|c| access_code.is_none_or(|ac| ac != c))
+    {
+        return Err(AppError::new(
+            ErrorType::Authentication("Bad credentials".to_string()),
+            anyhow::anyhow!("Bad credentials"),
+        ));
+    }
+
     let rec = sqlx::query_as!(
         Space,
         r#"
@@ -119,7 +180,7 @@ pub async fn spaces_update(
             description = COALESCE($3, description),
             is_public = COALESCE($4, is_public),
             access_code = COALESCE($5, access_code)
-        WHERE id = $1
+        WHERE id = $1 AND (access_code = $5 OR access_code IS NULL)
         RETURNING *;
         "#,
         space_id,
@@ -142,7 +203,35 @@ pub async fn spaces_delete(
         upload_path: _,
     }): State<AppState>,
     Path(space_id): Path<String>,
-) -> Result<Json<Option<Space>>, AppError> {
+    Query(CodeQuery { access_code }): Query<CodeQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let rec = sqlx::query_as!(
+        Space,
+        r#"
+        SELECT * FROM spaces WHERE id = $1
+        "#,
+        space_id
+    )
+    .fetch_optional(&pool)
+    .await
+    .into_db_error()?;
+    let Some(space) = rec else {
+        return Err(AppError::new(
+            ErrorType::NotFound("Space does not exist".to_string()),
+            anyhow::anyhow!("Space does not exist"),
+        ));
+    };
+
+    if space
+        .access_code
+        .clone()
+        .is_some_and(|c| access_code.is_none_or(|ac| ac != c))
+    {
+        return Err(AppError::new(
+            ErrorType::Authentication("Bad credentials".to_string()),
+            anyhow::anyhow!("Bad credentials"),
+        ));
+    }
     let rec = sqlx::query_as!(
         Space,
         r#"

@@ -6,6 +6,6 @@ export default defineConfig({
 		preset: "bun",
 	},
 	vite: {
-		plugins: [tailwindcss()]
+		plugins: [tailwindcss()],
 	}
 });
