@@ -78,6 +78,15 @@ jobs:
           images: |
             ${{ env.GHCR_IMAGE }}
             ${{ env.DOCKERHUB_IMAGE }}
+          tags: |
+            # :latest on every push to master
+            type=raw,value=latest,enable={{is_default_branch}}
+            # :v1.2.3 and :v1.2 and :v1 on semver tags
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            # :sha-abc1234 for traceability
+            type=sha
 
       # Build and push Docker image with Buildx (don't push on PR)
       # https://github.com/docker/build-push-action
