@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE spaces SET total_size_used_bytes = total_size_used_bytes + $2 WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f0961706c4eab803196392a90ede759f1fc2943e062705896e51e025008acdc5"
+}

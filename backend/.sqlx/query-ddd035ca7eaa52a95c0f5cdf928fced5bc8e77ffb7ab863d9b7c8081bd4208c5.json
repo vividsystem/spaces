@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE spaces SET total_size_used_bytes = GREATEST(0, total_size_used_bytes - $2) WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ddd035ca7eaa52a95c0f5cdf928fced5bc8e77ffb7ab863d9b7c8081bd4208c5"
+}

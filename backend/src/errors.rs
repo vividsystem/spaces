@@ -235,16 +235,12 @@ pub fn init_logging() {
         }
     });
 
-    let log_dir = std::env::var("LOG_DIR").unwrap_or_else(|_| "./logs".to_string());
-
-    let file_appender = RollingFileAppender::new(Rotation::DAILY, &log_dir, "spaces.log");
-
     tracing_subscriber::registry()
         .with(env_filter)
         .with(
             tracing_subscriber::fmt::layer()
                 .json()
-                .with_writer(file_appender),
+                .with_writer(std::io::stdout),
         )
         .with(tracing_subscriber::fmt::layer().json())
         .init();

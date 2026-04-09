@@ -1,5 +1,5 @@
 [package]
-name = "backend"
+name = "spaces"
 version = "0.1.0"
 edition = "2024"
 
@@ -9,7 +9,7 @@ axum = { version = "0.8.6", features = ["http2", "ws", "macros", "multipart", "t
 dotenvy = "0.15.7"
 serde = { version = "1.0.228", features = ["derive"] }
 sha2 = "0.10.9"
-sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "time", "tls-native-tls"] }
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "time", "tls-rustls"] }
 thiserror = "2.0.17"
 time = { version = "0.3.44", features = ["serde", "macros", "formatting", "parsing", "serde-human-readable"] }
 tokio = { version = "1.48.0", features = ["fs", "macros", "rt-multi-thread"] }

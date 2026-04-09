@@ -91,10 +91,10 @@ async fn main() -> Result<(), AppError> {
         .await
         .into_db_error()?;
 
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .into_db_error()?;
+    // sqlx::migrate!("./migrations")
+    //     .run(&pool)
+    //     .await
+    //     .into_db_error()?;
     let state = AppState { pool, upload_path };
 
     let cors = CorsLayer::new()

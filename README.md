@@ -35,6 +35,18 @@ bun run build
 ```
 The above gives you a binary you can call
 
+### Docker
+#### Backend
+You need to setup `backend/.env` (see [backend/README.md](backend/README.md))
+and do `UPLOAD_PATH=/data/uploads`
+
+```bash
+cd backend
+docker build --tag spaces-backend .
+docker run --env-file .env -p 6570:6570 spaces-backend
+# or use in docker-compose
+```
+
 ### Example Systemd services
 I recommend making an extra user with its own home file directory where you can then safe the uploaded files
 #### Backend
@@ -54,7 +66,7 @@ RestartSec=5
 Environment="RUST_LOG=info"
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-user.target:
 ```
 `spaces-backend.service`
 #### Web
